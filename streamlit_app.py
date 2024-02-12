@@ -1,40 +1,66 @@
-import altair as alt
-import numpy as np
-import pandas as pd
 import streamlit as st
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import xlwings as xw
 
-"""
-# Welcome to Streamlit!
+st.set_option('deprecation.showPyplotGlobalUse', False)
 
-Edit `/streamlit_app.py` to customize this app to your heart's desire :heart:.
-If you have any questions, checkout our [documentation](https://docs.streamlit.io) and [community
-forums](https://discuss.streamlit.io).
 
-In the meantime, below is an example of what you can do with just a few lines of code:
-"""
+# Set style
+sns.set_style("whitegrid")
 
-num_points = st.slider("Number of points in spiral", 1, 10000, 1100)
-num_turns = st.slider("Number of turns in spiral", 1, 300, 31)
+def generate_line_plot(output_values):
+    x = np.linspace(0, 10, 10)
+    y = output_values   
+    plt.figure(figsize=(8, 6))
+    plt.plot(x, y, color='blue', linewidth=2)
+    plt.xlabel('X', fontsize=14)
+    plt.ylabel('Y', fontsize=14)
+    plt.title('Line Plot', fontsize=16)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+    plt.grid(True)
+    st.pyplot()
 
-indices = np.linspace(0, 1, num_points)
-theta = 2 * np.pi * num_turns * indices
-radius = indices
+def main():
+    st.title('Line Plot Generator')
+    st.write("""
+    Adjust the parameters to generate a line plot:
+    """)
+    
+    with st.sidebar:
+        st.subheader('Parameters')
+        slope = st.slider('Slope', min_value=-10.0, max_value=10.0, value=1.0, step=0.1, format="%.1f")
+        intercept = st.slider('Intercept', min_value=-10.0, max_value=10.0, value=0.0, step=0.1, format="%.1f")
+    
+    st.write(f'**Slope:** {slope}, **Intercept:** {intercept}')
 
-x = radius * np.cos(theta)
-y = radius * np.sin(theta)
+    wb = xw.Book('dumb_model.xlsx', mode='i')
 
-df = pd.DataFrame({
-    "x": x,
-    "y": y,
-    "idx": indices,
-    "rand": np.random.randn(num_points),
-})
+    # Access the inputs sheet
+    inputs_sheet = wb.sheets['inputs']
 
-st.altair_chart(alt.Chart(df, height=700, width=700)
-    .mark_point(filled=True)
-    .encode(
-        x=alt.X("x", axis=None),
-        y=alt.Y("y", axis=None),
-        color=alt.Color("idx", legend=None, scale=alt.Scale()),
-        size=alt.Size("rand", legend=None, scale=alt.Scale(range=[1, 150])),
-    ))
+    # Edit the values in the inputs sheet
+    inputs_sheet.range('C2').value = slope
+    inputs_sheet.range('C3').value = intercept
+
+    # Calculate the workbook to update the outputs
+    wb.app.calculate()
+
+    # Access the outputs sheet
+    outputs_sheet = wb.sheets['outputs']
+
+    # Read the values from the outputs sheet
+    output_values = outputs_sheet.range('C3:C12').value
+    print(output_values)
+
+    # Close the workbook
+    wb.close()
+    
+    generate_line_plot(output_values)
+
+if __name__ == "__main__":
+    main()  
+
+
